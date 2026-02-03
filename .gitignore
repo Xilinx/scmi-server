@@ -1,0 +1,13 @@
+# Build artifacts
+*.o
+*.bin
+*.elf
+build/
+
+# Editor files
+*.swp
+.*.swp
+
+# Development tools
+cscope.out
+tags
