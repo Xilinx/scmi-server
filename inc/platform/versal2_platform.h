@@ -4,16 +4,30 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef _VERSAL2_PLATFORM_H_
-#define _VERSAL2_PLATFORM_H_
+#ifndef VERSAL2_PLATFORM_H
+#define VERSAL2_PLATFORM_H
 
 #include <stddef.h>
 #include "versal2_scmi.h"
+#include <stdint.h>
+#include <lib/smccc.h>
 
-#define SIP_SCMI	(0xC200ffffU)
 #define SMT_BUFFER_BASE	0x7b000000
 
 void init_scmi_server(void);
+
+/* Custom platform initialization hooks */
+void custom_early_setup(void);
+void custom_runtime_setup(void);
+void custom_mmap_add(void);
+uint64_t custom_smc_handler(uint32_t smc_fid,
+			    uint64_t x1,
+			    uint64_t x2,
+			    uint64_t x3,
+			    uint64_t x4,
+			    void *cookie,
+			    void *handle,
+			    uint64_t flags);
 
 size_t plat_scmi_pd_count(unsigned int agent_id);
 const char *plat_scmi_pd_get_name(unsigned int agent_id, unsigned int pd_id);
@@ -27,4 +41,4 @@ int32_t plat_scmi_pd_set_state(unsigned int agent_id, unsigned int flags, unsign
 #define SCMI_PRODUCT	"Versal Gen 2"
 
 
-#endif /* _VERSAL2_PLATFORM_H_ */
+#endif /* VERSAL2_PLATFORM_H */
