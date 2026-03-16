@@ -692,7 +692,6 @@ const uint8_t *plat_scmi_protocol_list(unsigned int agent_id __unused)
 void init_scmi_server(void)
 {
 	size_t i;
-	int32_t ret;
 
 	for (i = 0U; i < ARRAY_SIZE(scmi_channel); i++) {
 		scmi_smt_init_agent_channel(&scmi_channel[i]);
@@ -700,34 +699,4 @@ void init_scmi_server(void)
 
 	NOTICE("SCMI: Server initialized %s %s %s\n",
 	       SCMI_PKG_VERSION, SCMI_BUILD_DATE, SCMI_BUILD_TIME);
-
-	if (platform_id == QEMU) {
-		/* default setting is for QEMU */
-	} else if (platform_id == SPP) {
-		for (i = 0U; i < ARRAY_SIZE(scmi0_clock); i++) {
-
-			/* Keep i2c on 100MHz to calculate rates properly */
-			if ((i >= CLK_I2C0_0) && (i <= CLK_I2C7_0)) {
-				continue;
-			}
-
-			/* Keep UFS clocks to default values to get the expected rates */
-			if ((i >= CLK_UFS0_0) && (i <= CLK_UFS0_2)) {
-				continue;
-			}
-
-			/*
-			 * SPP supports multiple versions.
-			 * The cpu_clock value is set to corresponding SPP
-			 * version in early platform setup, resuse the same
-			 * value here.
-			 */
-			ret = plat_scmi_clock_set_rate(0, i, cpu_clock);
-			if (ret < 0) {
-				NOTICE("Failed to set clock rate for SPP scmi_id=%ld\n", i);
-			}
-		}
-	} else {
-		/* Making MISRA C 2012 15.7 compliant */
-	}
 }
