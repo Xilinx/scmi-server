@@ -6,14 +6,18 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <lib/mmio.h>
 #include <lib/utils_def.h>
-#include <plat_private.h>
 #include <platform_def.h>
+#include "platform/pm_defs.h"
+#include "platform/pm_api.h"
 #include "platform/versal2_platform.h"
 #include "common.h"
 
@@ -59,113 +63,20 @@
 #define HIGH (1)
 #define LOW (0)
 
-struct scmi_clk {
-	unsigned long clock_id;
-	unsigned long rate;
-	const char *name;
-	bool enabled;
-};
+#define XPM_NODESUBCLASS_SCMI		0xAU
+#define XPM_NODETYPE_SCMI		0x0U
 
-#define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled, _rate) \
-	[_scmi_id] = { \
-		.clock_id = (_id), \
-		.name = (_name), \
-		.enabled = (_init_enabled), \
-		.rate = (_rate), \
-	}
+#define XPM_NODEID_CLASS_SHIFT		26
+#define XPM_NODEID_SUBCLASS_SHIFT	20
+#define XPM_NODEID_TYPE_SHIFT		14
+#define XPM_NODEID_INDEX_MASK		0x3FFF
 
-static struct scmi_clk scmi0_clock[] = {
-	CLOCK_CELL(CLK_GEM0_0, CLK_GEM0_0, "gem0_pclk", true, 100000000),
-	CLOCK_CELL(CLK_GEM0_1, CLK_GEM0_1, "gem0_hclk", true, 100000000),
-	CLOCK_CELL(CLK_GEM0_2, CLK_GEM0_2, "gem0_tx_clk", true, 125000000),
-	CLOCK_CELL(CLK_GEM0_3, CLK_GEM0_3, "gem0_rx_clk", true, 100000000),
-	CLOCK_CELL(CLK_GEM0_4, CLK_GEM0_4, "gem0_tsu_clk", true, 100000000),
-	CLOCK_CELL(CLK_GEM1_0, CLK_GEM1_0, "gem1_pclk", true, 100000000),
-	CLOCK_CELL(CLK_GEM1_1, CLK_GEM1_1, "gem1_hclk", true, 100000000),
-	CLOCK_CELL(CLK_GEM1_2, CLK_GEM1_2, "gem1_tx_clk", true, 125000000),
-	CLOCK_CELL(CLK_GEM1_3, CLK_GEM1_3, "gem1_rx_clk", true, 100000000),
-	CLOCK_CELL(CLK_GEM1_4, CLK_GEM1_4, "gem1_tsu_clk", true, 100000000),
-	CLOCK_CELL(CLK_SERIAL0_0, CLK_SERIAL0_0, "uart0_uartclk", true, 100000000),
-	CLOCK_CELL(CLK_SERIAL0_1, CLK_SERIAL0_1, "uart0_apb_pclk", true, 100000000),
-	CLOCK_CELL(CLK_SERIAL1_0, CLK_SERIAL1_0, "uart1_uartclk", true, 100000000),
-	CLOCK_CELL(CLK_SERIAL1_1, CLK_SERIAL1_1, "uart1_apb_pclk", true, 100000000),
-	CLOCK_CELL(CLK_UFS0_0, CLK_UFS0_0, "ufs_core_clk", true, 100000000),
-	CLOCK_CELL(CLK_UFS0_1, CLK_UFS0_1, "ufs_phy_clk", true, 26000000),
-	CLOCK_CELL(CLK_UFS0_2, CLK_UFS0_2, "ufs_ref_pclk", true, 26000000),
-	CLOCK_CELL(CLK_USB0_0, CLK_USB0_0, "usb0_bus_clk", true, 100000000),
-	CLOCK_CELL(CLK_USB0_1, CLK_USB0_1, "usb0_ref_clk", true, 100000000),
-	CLOCK_CELL(CLK_USB0_2, CLK_USB0_2, "usb0_dwc_clk", true, 100000000),
-	CLOCK_CELL(CLK_USB1_0, CLK_USB1_0, "usb1_bus_clk", true, 100000000),
-	CLOCK_CELL(CLK_USB1_1, CLK_USB1_1, "usb1_ref_clk", true, 100000000),
-	CLOCK_CELL(CLK_USB1_2, CLK_USB1_2, "usb1_dwc_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC0_0, CLK_MMC0_0, "mmc0_xin_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC0_1, CLK_MMC0_1, "mmc0_ahb_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC0_2, CLK_MMC0_2, "mmc0_gate_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC1_0, CLK_MMC1_0, "mmc1_xin_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC1_1, CLK_MMC1_1, "mmc1_ahb_clk", true, 100000000),
-	CLOCK_CELL(CLK_MMC1_2, CLK_MMC1_2, "mmc1_gate_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC0_0, CLK_TTC0_0, "ttc0_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC1_0, CLK_TTC1_0, "ttc1_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC2_0, CLK_TTC2_0, "ttc2_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC3_0, CLK_TTC3_0, "ttc3_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC4_0, CLK_TTC4_0, "ttc4_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC5_0, CLK_TTC5_0, "ttc5_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC6_0, CLK_TTC6_0, "ttc6_clk", true, 100000000),
-	CLOCK_CELL(CLK_TTC7_0, CLK_TTC7_0, "ttc7_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C0_0, CLK_I2C0_0, "i2c0_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C1_0, CLK_I2C1_0, "i2c1_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C2_0, CLK_I2C2_0, "i2c2_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C3_0, CLK_I2C3_0, "i2c3_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C4_0, CLK_I2C4_0, "i2c4_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C5_0, CLK_I2C5_0, "i2c5_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C6_0, CLK_I2C6_0, "i2c6_clk", true, 100000000),
-	CLOCK_CELL(CLK_I2C7_0, CLK_I2C7_0, "i2c7_clk", true, 100000000),
-	CLOCK_CELL(CLK_OSPI0_0, CLK_OSPI0_0, "ospi0_clk", true, 100000000),
-	CLOCK_CELL(CLK_QSPI0_0, CLK_QSPI0_0, "qpsi0_ref_clk", true, 100000000),
-	CLOCK_CELL(CLK_QSPI0_1, CLK_QSPI0_1, "qspi0_pclk", true, 100000000),
-	CLOCK_CELL(CLK_WWDT0_0, CLK_WWDT0_0, "wwdt0_clk", true, 100000000),
-	CLOCK_CELL(CLK_WWDT1_0, CLK_WWDT1_0, "wwdt1_clk", true, 100000000),
-	CLOCK_CELL(CLK_WWDT2_0, CLK_WWDT2_0, "wwdt2_clk", true, 100000000),
-	CLOCK_CELL(CLK_WWDT3_0, CLK_WWDT3_0, "wwdt3_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA0_0, CLK_ADMA0_0, "adma0_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA0_1, CLK_ADMA0_1, "adma0_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA1_0, CLK_ADMA1_0, "adma1_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA1_1, CLK_ADMA1_1, "adma1_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA2_0, CLK_ADMA2_0, "adma2_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA2_1, CLK_ADMA2_1, "adma2_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA3_0, CLK_ADMA3_0, "adma3_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA3_1, CLK_ADMA3_1, "adma3_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA4_0, CLK_ADMA4_0, "adma4_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA4_1, CLK_ADMA4_1, "adma4_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA5_0, CLK_ADMA5_0, "adma5_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA5_1, CLK_ADMA5_1, "adma5_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA6_0, CLK_ADMA6_0, "adma6_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA6_1, CLK_ADMA6_1, "adma6_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA7_0, CLK_ADMA7_0, "adma7_main_clk", true, 100000000),
-	CLOCK_CELL(CLK_ADMA7_1, CLK_ADMA7_1, "adma7_apb_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN0_0, CLK_CAN0_0, "can0_can_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN0_1, CLK_CAN0_1, "can0_axi_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN1_0, CLK_CAN1_0, "can1_can_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN1_1, CLK_CAN1_1, "can1_axi_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN2_0, CLK_CAN2_0, "can2_can_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN2_1, CLK_CAN2_1, "can2_axi_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN3_0, CLK_CAN3_0, "can3_can_clk", true, 100000000),
-	CLOCK_CELL(CLK_CAN3_1, CLK_CAN3_1, "can3_axi_clk", true, 100000000),
-	CLOCK_CELL(CLK_PS_GPIO_0, CLK_PS_GPIO_0, "ps_gpio_clk", true, 100000000),
-	CLOCK_CELL(CLK_PMC_GPIO_0, CLK_PMC_GPIO_0, "pmc_gpio_clk", true, 100000000),
-	CLOCK_CELL(CLK_SPI0_0, CLK_SPI0_0, "spi0_ref_clk", true, 100000000),
-	CLOCK_CELL(CLK_SPI0_1, CLK_SPI0_1, "spi0_pclk", true, 100000000),
-	CLOCK_CELL(CLK_SPI1_0, CLK_SPI1_0, "spi1_ref_clk", true, 100000000),
-	CLOCK_CELL(CLK_SPI1_1, CLK_SPI1_1, "spi1_pclk", true, 100000000),
-	CLOCK_CELL(CLK_I3C0_0, CLK_I3C0_0, "i3c0_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C1_0, CLK_I3C1_0, "i3c1_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C2_0, CLK_I3C2_0, "i3c2_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C3_0, CLK_I3C3_0, "i3c3_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C4_0, CLK_I3C4_0, "i3c4_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C5_0, CLK_I3C5_0, "i3c5_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C6_0, CLK_I3C6_0, "i3c6_clk", true, 100000000),
-	CLOCK_CELL(CLK_I3C7_0, CLK_I3C7_0, "i3c7_clk", true, 100000000),
-};
+/* Format descriptor bit field definitions */
+#define FORMAT_DESC_NUM_RATES_MASK       0xFFF
+#define FORMAT_DESC_IS_RANGE_SHIFT       12
+#define FORMAT_DESC_IS_RANGE_MASK        0x1
+#define FORMAT_DESC_NUM_REMAINING_SHIFT  16
+#define FORMAT_DESC_NUM_REMAINING_MASK   0xFFFF
 
 /*
  * struct scmi_reset - Data for the exposed reset controller
@@ -247,8 +158,6 @@ static struct scmi_pd scmi0_pd[] = {
 };
 
 struct scmi_resources {
-	struct scmi_clk *clock;
-	size_t clock_count;
 	struct scmi_reset *reset;
 	size_t reset_count;
 	struct scmi_pd *pd;
@@ -257,8 +166,6 @@ struct scmi_resources {
 
 static const struct scmi_resources resources[] = {
 	[0] = {
-		.clock = scmi0_clock,
-		.clock_count = ARRAY_SIZE(scmi0_clock),
 		.reset = scmi0_reset,
 		.reset_count = ARRAY_SIZE(scmi0_reset),
 		.pd = scmi0_pd,
@@ -273,80 +180,153 @@ static const struct scmi_resources *find_resource(unsigned int agent_id)
 	return &resources[agent_id];
 }
 
-static struct scmi_clk *clk_find(unsigned int agent_id, unsigned int scmi_id)
+static inline uint32_t scmi_encode_node_id(uint32_t node_class, uint32_t scmi_id)
 {
-	const struct scmi_resources *resource = find_resource(agent_id);
-	size_t n = 0U;
-	struct scmi_clk *ret = NULL;
-
-	if (resource != NULL) {
-		for (n = 0U; n < resource->clock_count; n++) {
-			if (n == scmi_id) {
-				ret = &resource->clock[n];
-				break;
-			}
-		}
-	}
-
-	return ret;
+	return ((node_class & 0x3FU) << XPM_NODEID_CLASS_SHIFT) |
+	       (((uint32_t)XPM_NODESUBCLASS_SCMI & 0x3FU) << XPM_NODEID_SUBCLASS_SHIFT) |
+	       (((uint32_t)XPM_NODETYPE_SCMI & 0x3FU) << XPM_NODEID_TYPE_SHIFT) |
+	       (scmi_id & (uint32_t)XPM_NODEID_INDEX_MASK);
 }
 
+/*
+ * Generic PM API error to SCMI error mapper
+ */
+static int32_t pm_error_to_scmi(enum pm_api_ret_status pm_ret)
+{
+	int32_t scmi_ret;
+
+	if (pm_ret == PM_RET_SUCCESS) {
+		scmi_ret = SCMI_SUCCESS;
+	} else if (pm_ret == PM_RET_ERROR_NO_FEATURE) {
+		scmi_ret = SCMI_NOT_SUPPORTED;
+	} else if (pm_ret == PM_RET_ERROR_INVALID_NODE) {
+		scmi_ret = SCMI_NOT_FOUND;
+	} else if (pm_ret == PM_RET_ERROR_ACCESS) {
+		scmi_ret = SCMI_DENIED;
+	} else if (pm_ret == PM_RET_ERROR_ARGS) {
+		scmi_ret = SCMI_INVALID_PARAMETERS;
+	} else {
+		scmi_ret = SCMI_HARDWARE_ERROR;
+	}
+
+	return scmi_ret;
+}
+
+/*
+ * Platform SCMI clock
+ */
 size_t plat_scmi_clock_count(unsigned int agent_id)
 {
-	const struct scmi_resources *resource = find_resource(agent_id);
-	size_t ret;
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status ret;
+	size_t count;
+	(void)agent_id;
 
-	if (resource == NULL) {
-		ret = 0U;
+	/* Query firmware for clock count using XPM_QID_GET_NODE_COUNT with CLOCK class */
+	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_CLOCK, 0, 0, data, 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		count = (size_t)data[0];
 	} else {
-		VERBOSE("SCMI: CLK: %d clocks\n", (unsigned int)resource->clock_count);
-
-		ret = resource->clock_count;
+		count = 0U;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
-	return ret;
+
+	return count;
 }
 
 const char *plat_scmi_clock_get_name(unsigned int agent_id, unsigned int scmi_id)
 {
-	const struct scmi_clk *clock = clk_find(agent_id, scmi_id);
-	const char *ret;
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	static char name_buffer[16];
+	enum pm_api_ret_status ret;
+	const char *result;
+	(void)agent_id;
 
-	if (clock == NULL) {
-		ret = NULL;
+	/* Query firmware for clock name using XPM_QID_GET_NAME */
+	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		/* Name is returned in data[0] as a 32-bit value */
+		(void)strlcpy(name_buffer, (char *) &data[0], sizeof(name_buffer));
+		name_buffer[15] = '\0';  /* Ensure null termination */
+		result = name_buffer;
 	} else {
-		VERBOSE("SCMI: CLK: id: %d, get_name: %s\n", scmi_id, clock->name);
-
-		ret = clock->name;
+		result = NULL;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
-	return ret;
-};
 
-/* Called by Linux */
+	return result;
+}
+
 int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
-				    unsigned long *array, size_t *nb_elts,
+				    unsigned long *rates, size_t *nb_elts,
 				    uint32_t start_idx)
 {
-	const struct scmi_clk *clock = clk_find(agent_id, scmi_id);
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status pm_ret;
+	uint32_t num_rates_remaining;
+	uint32_t num_rates_returned;
 	int32_t ret = SCMI_SUCCESS;
+	uint32_t format_desc;
+	uint32_t is_range;
+	(void)agent_id;
 
-	if (clock == NULL) {
-		ret = SCMI_NOT_FOUND;
+	/* Call PLM to describe the rates for this clock at the specified index */
+	pm_ret = pm_api_clock_describe_rate(encoded_id, start_idx, data, RET_PAYLOAD_ARG_CNT - 1U);
+
+	if (pm_ret != PM_RET_SUCCESS) {
+		ret = pm_error_to_scmi(pm_ret);
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
 		goto exit_label;
 	}
 
-	if (start_idx > 0U) {
-		ret = SCMI_OUT_OF_RANGE;
+	/* Parse format descriptor */
+	format_desc = data[0];
+	num_rates_returned = format_desc & (uint32_t)FORMAT_DESC_NUM_RATES_MASK;
+	is_range = (format_desc >> FORMAT_DESC_IS_RANGE_SHIFT) & (uint32_t)FORMAT_DESC_IS_RANGE_MASK;
+	num_rates_remaining = (format_desc >> FORMAT_DESC_NUM_REMAINING_SHIFT) &
+			      (uint32_t)FORMAT_DESC_NUM_REMAINING_MASK;
+
+	/*
+	 * This function handles ONLY discrete rate arrays.
+	 * If PLM returns range format, signal NOT_SUPPORTED so caller uses
+	 * plat_scmi_clock_rates_by_step.
+	 */
+	if (is_range != 0U) {
+		ret = SCMI_NOT_SUPPORTED;
 		goto exit_label;
 	}
 
-	if (array == NULL) {
-		*nb_elts = 1U;
-	} else if (*nb_elts == 1U) {
-		*array = clock->rate;
-		VERBOSE("SCMI: CLK: id: %d, clk_name: %s, get_rate %lu\n",
-		     scmi_id, clock->name, *array);
+	/*
+	 * Enforce the platform limit on discrete clock-rate entries.
+	 *
+	 * The implementation with IPI can handle at most 3 discrete rates in a single
+	 * response.
+	 */
+	if (num_rates_returned > 3U) {
+		ret = SCMI_NOT_SUPPORTED;
+		goto exit_label;
+	}
+
+	if (rates == NULL) {
+		/*
+		 * First call to get total count for discrete rates.
+		 * Total = rates returned in this call + remaining rates
+		 */
+		*nb_elts = (size_t)num_rates_returned + (size_t)num_rates_remaining;
 	} else {
-		ret = SCMI_GENERIC_ERROR;
+		/*
+		 * Discrete list - fill in what was returned.
+		 */
+		size_t count = (*nb_elts < num_rates_returned) ? *nb_elts : num_rates_returned;
+
+		for (size_t i = 0; i < count; i++) {
+			rates[i] = data[i + 1U];  /* Skip data[0] (format) */
+		}
+		*nb_elts = count;
 	}
 
 exit_label:
@@ -355,81 +335,111 @@ exit_label:
 
 unsigned long plat_scmi_clock_get_rate(unsigned int agent_id, unsigned int scmi_id)
 {
-	const struct scmi_clk *clock = clk_find(agent_id, scmi_id);
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
+	enum pm_api_ret_status pm_ret;
 	unsigned long ret;
+	uint32_t rate = 0;
+	(void)agent_id;
 
-	if (clock == NULL) {
-		ret = SCMI_NOT_FOUND;
+	/* Call PLM to get the current rate */
+	pm_ret = pm_api_get_rate(encoded_id, &rate);
+
+	if (pm_ret == PM_RET_SUCCESS) {
+		ret = (unsigned long) rate;
 	} else {
-		VERBOSE("SCMI: CLK: id: %d, get_rate: %lu\n", scmi_id, clock->rate);
-		ret = clock->rate;
+		ret = 0UL;
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
 	}
+
 	return ret;
 }
 
 int32_t plat_scmi_clock_set_rate(unsigned int agent_id, unsigned int scmi_id,
 				 unsigned long rate)
 {
-	struct scmi_clk *clock = clk_find(agent_id, scmi_id);
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
+	enum pm_api_ret_status pm_ret;
 	int32_t ret = SCMI_SUCCESS;
+	(void)agent_id;
 
-	if (clock == NULL) {
-		ret = SCMI_NOT_FOUND;
-	} else {
-		VERBOSE("SCMI: CLK: id: %d, set_rate: %lu\n", scmi_id, rate);
-		clock->rate = rate;
+	/* Call PLM to set the rate */
+	pm_ret = pm_api_set_rate(encoded_id, (uint32_t)rate);
+
+	ret = pm_error_to_scmi(pm_ret);
+	if (ret != SCMI_SUCCESS) {
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
 	}
+
 	return ret;
 }
 
 int32_t plat_scmi_clock_get_state(unsigned int agent_id, unsigned int scmi_id)
 {
-	const struct scmi_clk *clock = clk_find(agent_id, scmi_id);
-	int32_t ret;
-
-	if (clock == NULL) {
-		ret = SCMI_NOT_FOUND;
-	} else {
-		VERBOSE("SCMI: CLK: id: %d, get_state: %d\n", scmi_id, clock->enabled);
-
-		if (clock->enabled) {
-			ret = HIGH;
-		} else {
-			ret = LOW;
-		}
-	}
-	return ret;
+	(void)agent_id;
+	(void)scmi_id;
+	/*
+	 * Clock is always enabled in PLM and we don't have support to enable/disable
+	 * the same, so return enabled as default for compatibility
+	 */
+	return HIGH;
 }
 
 int32_t plat_scmi_clock_set_state(unsigned int agent_id, unsigned int scmi_id,
 				  bool enable_not_disable)
 {
-	struct scmi_clk *clock = clk_find(agent_id, scmi_id);
-	int32_t ret;
-
-	if (clock == NULL) {
-		ret = SCMI_NOT_FOUND;
-	} else {
-		if (enable_not_disable) {
-			if (!clock->enabled) {
-				VERBOSE("SCMI: clock: %u enable\n", scmi_id);
-				clock->enabled = true;
-			}
-		} else {
-			if (clock->enabled) {
-				VERBOSE("SCMI: clock: %u disable\n", scmi_id);
-				clock->enabled = false;
-			}
-		}
-
-		VERBOSE("SCMI: CLK: id: %d, set_state: %d\n", scmi_id, clock->enabled);
-
-		ret = SCMI_SUCCESS;
-	}
-
-	return ret;
+	(void)enable_not_disable;
+	(void)agent_id;
+	(void)scmi_id;
+	/*
+	 * Clock is always enabled in PLM and we don't have support to enable/disable
+	 * the same, so return SUCCESS as default for compatibility
+	 */
+	return SCMI_SUCCESS;
 }
 
+int32_t plat_scmi_clock_rates_by_step(unsigned int agent_id, unsigned int scmi_id,
+				      unsigned long *min_max_step)
+{
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status pm_ret;
+	uint32_t num_rates_returned;
+	int32_t ret = SCMI_SUCCESS;
+	uint32_t format_desc;
+	uint32_t is_range;
+	(void)agent_id;
+
+	/* Call PLM to describe the rates for this clock (index 0 for range format) */
+	pm_ret = pm_api_clock_describe_rate(encoded_id, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
+
+	if (pm_ret != PM_RET_SUCCESS) {
+		ret = pm_error_to_scmi(pm_ret);
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+		goto exit_label;
+	}
+
+	/* Parse format descriptor */
+	format_desc = data[0];
+	num_rates_returned = format_desc & (uint32_t)FORMAT_DESC_NUM_RATES_MASK;
+	is_range = (format_desc >> FORMAT_DESC_IS_RANGE_SHIFT) & (uint32_t)FORMAT_DESC_IS_RANGE_MASK;
+
+	/*
+	 * Accept this call only if we have exactly 3 rates (min, max, step) and
+	 * the format is range.
+	 */
+	if ((is_range == 0U) || (num_rates_returned != 3U)) {
+		ret = SCMI_NOT_SUPPORTED;
+		goto exit_label;
+	}
+
+	/* Range format: extract min, max, step */
+	min_max_step[0] = data[1];  /* Min rate */
+	min_max_step[1] = data[2];  /* Max rate */
+	min_max_step[2] = data[3];  /* Step */
+
+exit_label:
+	return ret;
+}
 
 /*
  * Platform SCMI reset domains

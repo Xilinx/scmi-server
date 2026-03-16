@@ -66,6 +66,7 @@ scmi-server/
 │   ├── reset_domain.h  # Reset domain protocol definitions
 │   ├── sensor.h        # Sensor protocol definitions
 │   └── platform/       # Platform-specific headers
+│       ├── pm_api.h            # Platform management API function declarations
 │       ├── pm_defs.h           # Platform management API definitions and constants
 │       ├── versal2_scmi.h      # Versal2 SCMI resource IDs
 │       └── versal2_platform.h  # Versal2 platform definitions and SIP_SCMI FID

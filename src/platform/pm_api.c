@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <lib/utils.h>
-#include "platform/pm_defs.h"
+#include "platform/pm_api.h"
 #include "pm_client.h"
 
 extern enum pm_api_ret_status pm_ipi_send_sync(const struct pm_proc *proc,
@@ -61,4 +61,152 @@ static uint32_t pm_api_feature_check(uint32_t api_id)
 	}
 
 	return return_value;
+}
+
+/**
+ * pm_api_get_rate() - Get the current rate of clock for given id
+ * @node: ID of the clock
+ * @rate: Rate retrieved from the firmware
+ *
+ * This function is used by master to get the current rate of the clock
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_get_rate(const uint32_t node, uint32_t *rate)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if clock get rate API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_CLOCK_GET_RATE));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_CLOCK_GET_RATE);
+		payload[1] = node;
+
+		result = pm_ipi_send_sync(primary_proc, payload, rate, 1);
+	}
+
+	return result;
+}
+
+/**
+ * pm_api_set_rate() - Set the rate of clock for given id
+ * @node: ID of the clock
+ * @rate: Rate to be set
+ *
+ * This function is used by master to set the rate of the clock
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_set_rate(const uint32_t node, uint32_t rate)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if clock set rate API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_CLOCK_PROGRAM_RATE));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_CLOCK_PROGRAM_RATE);
+		payload[1] = node;
+		payload[2] = rate;
+
+		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+	}
+
+	return result;
+}
+
+/**
+ * pm_api_query_data() - Query firmware data
+ * @qid: Query ID
+ * @arg1: Argument 1
+ * @arg2: Argument 2
+ * @arg3: Argument 3
+ * @data: Returned data
+ * @count: Number of return values expected
+ *
+ * This function is used to query firmware for various data
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_query_data(uint32_t qid, uint32_t arg1, uint32_t arg2,
+		      uint32_t arg3, uint32_t *data, size_t count)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if query data API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_QUERY_DATA));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_QUERY_DATA);
+		payload[1] = qid;
+		payload[2] = arg1;
+		payload[3] = arg2;
+		payload[4] = arg3;
+
+		result = pm_ipi_send_sync(primary_proc, payload, data, count);
+	}
+
+	return result;
+}
+
+/**
+ * pm_api_clock_describe_rate() - Describe supported rates for a clock
+ * @node: ID of the clock (encoded SCMI_ID)
+ * @index: Starting index for rate description (for pagination)
+ * @data: Returned rate data (format descriptor + rates)
+ * @count: Number of return values expected
+ *
+ * This function queries the firmware for supported rates for a given clock.
+ * Response format:
+ *   data[0]: Format descriptor
+ *            - Bits [0-11]: Number of rates returned
+ *            - Bit [12]: Return format (0=discrete list, 1=range)
+ *            - Bits [13-15]: Reserved
+ *            - Bits [16-31]: Number of remaining rates
+ *   data[1-N]: Rate data (format depends on bit[12] of data[0])
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_clock_describe_rate(const uint32_t node, uint32_t index,
+			       uint32_t *data, size_t count)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if clock describe rate API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_CLOCK_DESCRIBERATE));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_CLOCK_DESCRIBERATE);
+		payload[1] = node;
+		payload[2] = index;
+
+		result = pm_ipi_send_sync(primary_proc, payload, data, count);
+	}
+
+	return result;
 }
