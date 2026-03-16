@@ -210,3 +210,36 @@ enum pm_api_ret_status pm_api_clock_describe_rate(const uint32_t node, uint32_t 
 
 	return result;
 }
+
+/**
+ * pm_api_reset_assert() - Request setting of reset (1 - assert, 0 - release)
+ * @reset: Reset to be configured
+ * @assert_flag: Flag stating should reset be asserted (1) or
+ *               released (0)
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_reset_assert(const uint32_t reset,
+			const enum pm_api_reset_action assert_flag)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if reset API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_RESET_ASSERT));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_RESET_ASSERT);
+		payload[1] = reset;
+		payload[2] = (uint32_t)assert_flag;
+
+		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+	}
+
+	return result;
+}

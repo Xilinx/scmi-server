@@ -78,61 +78,6 @@
 #define FORMAT_DESC_NUM_REMAINING_SHIFT  16
 #define FORMAT_DESC_NUM_REMAINING_MASK   0xFFFF
 
-/*
- * struct scmi_reset - Data for the exposed reset controller
- * @reset_id: Reset identifier in RCC reset driver
- * @name: Reset string ID exposed to agent
- */
-struct scmi_reset {
-	unsigned long reset_id;
-	const char *name;
-};
-
-#define RESET_CELL(_scmi_id, _id, _name) \
-	[_scmi_id] = { \
-		.reset_id = (_id), \
-		.name = (_name), \
-	}
-
-static struct scmi_reset scmi0_reset[] = {
-	RESET_CELL(RESET_GEM0_0, RESET_GEM0_0, "gem0"),
-	RESET_CELL(RESET_GEM1_0, RESET_GEM1_0, "gem1"),
-	RESET_CELL(RESET_SERIAL0_0, RESET_SERIAL0_0, "serial0"),
-	RESET_CELL(RESET_SERIAL1_0, RESET_SERIAL1_0, "serial1"),
-	RESET_CELL(RESET_UFS0_0, RESET_UFS0_0, "ufs0"),
-	RESET_CELL(RESET_I2C0_0, RESET_I2C0_0, "i2c0"),
-	RESET_CELL(RESET_I2C1_0, RESET_I2C1_0, "i2c1"),
-	RESET_CELL(RESET_I2C2_0, RESET_I2C2_0, "i2c2"),
-	RESET_CELL(RESET_I2C3_0, RESET_I2C3_0, "i2c3"),
-	RESET_CELL(RESET_I2C4_0, RESET_I2C4_0, "i2c4"),
-	RESET_CELL(RESET_I2C5_0, RESET_I2C5_0, "i2c5"),
-	RESET_CELL(RESET_I2C6_0, RESET_I2C6_0, "i2c6"),
-	RESET_CELL(RESET_I2C7_0, RESET_I2C7_0, "i2c7"),
-	RESET_CELL(RESET_I2C8_0, RESET_I2C8_0, "i2c8"),
-	RESET_CELL(RESET_OSPI0_0, RESET_OSPI0_0, "ospi"),
-	RESET_CELL(RESET_USB0_0, RESET_USB0_0, "usb0_0"),
-	RESET_CELL(RESET_USB0_1, RESET_USB0_1, "usb0_1"),
-	RESET_CELL(RESET_USB0_2, RESET_USB0_2, "usb0_2"),
-	RESET_CELL(RESET_USB1_0, RESET_USB1_0, "usb1_0"),
-	RESET_CELL(RESET_USB1_1, RESET_USB1_1, "usb1_1"),
-	RESET_CELL(RESET_USB1_2, RESET_USB1_2, "usb1_2"),
-	RESET_CELL(RESET_MMC0_0, RESET_MMC0_0, "mmc0"),
-	RESET_CELL(RESET_MMC1_0, RESET_MMC1_0, "mmc1"),
-	RESET_CELL(RESET_SPI0_0, RESET_SPI0_0, "spi0"),
-	RESET_CELL(RESET_SPI1_0, RESET_SPI1_0, "spi1"),
-	RESET_CELL(RESET_QSPI0_0, RESET_QSPI0_0, "qspi"),
-	RESET_CELL(RESET_I3C0_0, RESET_I3C0_0, "i3c0"),
-	RESET_CELL(RESET_I3C1_0, RESET_I3C1_0, "i3c1"),
-	RESET_CELL(RESET_I3C2_0, RESET_I3C2_0, "i3c2"),
-	RESET_CELL(RESET_I3C3_0, RESET_I3C3_0, "i3c3"),
-	RESET_CELL(RESET_I3C4_0, RESET_I3C4_0, "i3c4"),
-	RESET_CELL(RESET_I3C5_0, RESET_I3C5_0, "i3c5"),
-	RESET_CELL(RESET_I3C6_0, RESET_I3C6_0, "i3c6"),
-	RESET_CELL(RESET_I3C7_0, RESET_I3C7_0, "i3c7"),
-	RESET_CELL(RESET_I3C8_0, RESET_I3C8_0, "i3c8"),
-	RESET_CELL(RESET_UFSPHY_0, RESET_UFSPHY_0, "ufsphy0"),
-};
-
 /**
  * struct scmi_pd - Data for the exposed power domain controller
  * @pd_id: pd identifier in RCC reset driver
@@ -158,16 +103,12 @@ static struct scmi_pd scmi0_pd[] = {
 };
 
 struct scmi_resources {
-	struct scmi_reset *reset;
-	size_t reset_count;
 	struct scmi_pd *pd;
 	size_t pd_count;
 };
 
 static const struct scmi_resources resources[] = {
 	[0] = {
-		.reset = scmi0_reset,
-		.reset_count = ARRAY_SIZE(scmi0_reset),
 		.pd = scmi0_pd,
 		.pd_count = ARRAY_SIZE(scmi0_pd),
 	},
@@ -444,105 +385,94 @@ exit_label:
 /*
  * Platform SCMI reset domains
  */
-static struct scmi_reset *find_reset(unsigned int agent_id,
-					 unsigned int scmi_id)
-{
-	const struct scmi_resources *resource = find_resource(agent_id);
-	size_t n;
-
-	if (resource != NULL) {
-		for (n = 0U; n < resource->reset_count; n++) {
-			if (n == scmi_id) {
-				return &resource->reset[n];
-			}
-		}
-	}
-
-	return NULL;
-}
 
 const char *plat_scmi_rstd_get_name(unsigned int agent_id, unsigned int scmi_id)
 {
-	const struct scmi_reset *reset = find_reset(agent_id, scmi_id);
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	static char name_buffer[16];
+	enum pm_api_ret_status ret;
+	const char *result;
+	(void)agent_id;
 
-	if (reset == NULL) {
-		return NULL;
+	/* Query firmware for reset name using XPM_QID_GET_NAME */
+	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		/* Name is returned in data[0] as a 32-bit value */
+		(void)strlcpy(name_buffer, (char *) &data[0], sizeof(name_buffer));
+		name_buffer[15] = '\0';  /* Ensure null termination */
+		result = name_buffer;
+	} else {
+		result = NULL;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
 
-	return reset->name;
+	return result;
 }
 
 size_t plat_scmi_rstd_count(unsigned int agent_id)
 {
-	const struct scmi_resources *resource = find_resource(agent_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status ret;
+	size_t count;
+	(void)agent_id;
 
-	if (resource == NULL) {
-		return 0U;
+	/* Query firmware for reset count using XPM_QID_GET_NODE_COUNT with RESET class */
+	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_RESET, 0, 0, data, 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		count = (size_t)data[0];
+	} else {
+		count = 0U;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
 
-	return resource->reset_count;
+	return count;
 }
 
 int32_t plat_scmi_rstd_autonomous(unsigned int agent_id, unsigned int scmi_id,
-				uint32_t state)
+				  unsigned int state)
 {
-	const struct scmi_reset *reset = find_reset(agent_id, scmi_id);
-
-	if (reset == NULL) {
-		return SCMI_NOT_FOUND;
-	}
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
+	enum pm_api_ret_status pm_ret;
+	int32_t ret = SCMI_SUCCESS;
+	(void)agent_id;
 
 	/* Supports only reset with context loss */
 	if (state != 0U) {
-		return SCMI_NOT_SUPPORTED;
+		ret = SCMI_NOT_SUPPORTED;
+	} else {
+		pm_ret = pm_api_reset_assert(encoded_id, PM_RESET_ACTION_PULSE);
+		ret = pm_error_to_scmi(pm_ret);
+		if (ret != SCMI_SUCCESS) {
+			NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+		}
 	}
 
-	NOTICE("SCMI reset on ID %lu/%s\n",
-	       reset->reset_id, plat_scmi_rstd_get_name(agent_id, scmi_id));
-
-	return SCMI_SUCCESS;
+	return ret;
 }
 
 int32_t plat_scmi_rstd_set_state(unsigned int agent_id, unsigned int scmi_id,
 				 bool assert_not_deassert)
 {
-	const struct scmi_reset *reset = find_reset(agent_id, scmi_id);
-
-	if (reset == NULL) {
-		return SCMI_NOT_FOUND;
-	}
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
+	enum pm_api_ret_status pm_ret;
+	int32_t ret;
+	(void)agent_id;
 
 	if (assert_not_deassert) {
-		NOTICE("SCMI reset %lu/%s set\n",
-		       reset->reset_id, plat_scmi_rstd_get_name(agent_id, scmi_id));
-
-		switch (scmi_id) {
-		case RESET_UFS0_0:
-			mmio_write_32(PMXC_CRP_RST_UFS, 1);
-			break;
-		case RESET_UFSPHY_0:
-			mmio_write_32(PMXC_IOU_SLCR_PHY_RESET, 1);
-			break;
-		default:
-			break;
-		}
+		pm_ret = pm_api_reset_assert(encoded_id, PM_RESET_ACTION_ASSERT);
 	} else {
-		NOTICE("SCMI reset %lu/%s release\n",
-		       reset->reset_id, plat_scmi_rstd_get_name(agent_id, scmi_id));
-
-		switch (scmi_id) {
-		case RESET_UFS0_0:
-			mmio_write_32(PMXC_CRP_RST_UFS, 0);
-			break;
-		case RESET_UFSPHY_0:
-			mmio_write_32(PMXC_IOU_SLCR_PHY_RESET, 0);
-			break;
-		default:
-			break;
-		}
+		pm_ret = pm_api_reset_assert(encoded_id, PM_RESET_ACTION_RELEASE);
 	}
 
-	return SCMI_SUCCESS;
+	ret = pm_error_to_scmi(pm_ret);
+	if (ret != SCMI_SUCCESS) {
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+	}
+
+	return ret;
 }
 
 /*

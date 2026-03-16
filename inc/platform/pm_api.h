@@ -24,4 +24,8 @@ enum pm_api_ret_status pm_api_clock_describe_rate(const uint32_t node, uint32_t 
 enum pm_api_ret_status pm_api_query_data(uint32_t qid, uint32_t arg1, uint32_t arg2,
 		      uint32_t arg3, uint32_t *data, size_t count);
 
+/* Reset management APIs */
+enum pm_api_ret_status pm_api_reset_assert(const uint32_t reset,
+			const enum pm_api_reset_action assert_flag);
+
 #endif /* PM_API_H */
