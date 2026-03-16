@@ -116,7 +116,8 @@ SCMI_TRANSPORT_SRCS := \
 # Platform-specific implementation
 SCMI_PLATFORM_SRCS := \
     $(SCMI_SERVER_ROOT)/src/platform/scmi.c \
-    $(SCMI_SERVER_ROOT)/src/platform/custom_svc.c
+    $(SCMI_SERVER_ROOT)/src/platform/custom_svc.c \
+    $(SCMI_SERVER_ROOT)/src/platform/pm_api.c
 
 # Combine all SCMI sources
 SCMI_SERVER_SRCS := $(SCMI_PROTOCOL_SRCS) $(SCMI_TRANSPORT_SRCS) $(SCMI_PLATFORM_SRCS)
