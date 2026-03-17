@@ -8,7 +8,6 @@
 #define VERSAL2_PLATFORM_H
 
 #include <stddef.h>
-#include "versal2_scmi.h"
 #include <stdint.h>
 #include <lib/smccc.h>
 
