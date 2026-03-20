@@ -78,48 +78,8 @@
 #define FORMAT_DESC_NUM_REMAINING_SHIFT  16
 #define FORMAT_DESC_NUM_REMAINING_MASK   0xFFFF
 
-/**
- * struct scmi_pd - Data for the exposed power domain controller
- * @pd_id: pd identifier in RCC reset driver
- * @name: pd string ID exposed to agent
- * @state: keep state setting
- */
-struct scmi_pd {
-	unsigned long pd_id;
-	const char *name;
-	unsigned int state;
-};
-
-#define PD_CELL(_scmi_id, _id, _name, _state) \
-	[_scmi_id] = { \
-		.pd_id = _id, \
-		.name = _name, \
-		.state = _state, \
-	}
-
-static struct scmi_pd scmi0_pd[] = {
-	PD_CELL(PD_USB0, PD_USB0, "usb0", 0),
-	PD_CELL(PD_USB1, PD_USB1, "usb1", 0),
-};
-
-struct scmi_resources {
-	struct scmi_pd *pd;
-	size_t pd_count;
-};
-
-static const struct scmi_resources resources[] = {
-	[0] = {
-		.pd = scmi0_pd,
-		.pd_count = ARRAY_SIZE(scmi0_pd),
-	},
-};
-
-static const struct scmi_resources *find_resource(unsigned int agent_id)
-{
-	assert(agent_id < ARRAY_SIZE(resources));
-
-	return &resources[agent_id];
-}
+#define PD_STATE_ON  0
+#define PD_STATE_OFF 0x40000000
 
 static inline uint32_t scmi_encode_node_id(uint32_t node_class, uint32_t scmi_id)
 {
@@ -476,95 +436,142 @@ int32_t plat_scmi_rstd_set_state(unsigned int agent_id, unsigned int scmi_id,
 }
 
 /*
- * Platform SCMI reset domains
+ * Platform SCMI power domains
  */
-static struct scmi_pd *find_pd(unsigned int agent_id, unsigned int pd_id)
-{
-	const struct scmi_resources *resource = find_resource(agent_id);
-	size_t n;
-
-	if (resource != NULL) {
-		for (n = 0U; n < resource->pd_count; n++) {
-			if (n == pd_id) {
-				return &resource->pd[n];
-			}
-		}
-	}
-
-	return NULL;
-}
 
 size_t plat_scmi_pd_count(unsigned int agent_id)
 {
-	const struct scmi_resources *resource = find_resource(agent_id);
-	size_t ret;
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status ret;
+	size_t count;
+	(void)agent_id;
 
-	if (resource == NULL) {
-		ret = 0U;
+	/* Query firmware for power domain count using XPM_QID_GET_NODE_COUNT with POWER class */
+	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_DEVICE, 0, 0, data, 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		count = (size_t)data[0];
 	} else {
-		ret = resource->pd_count;
-
-		NOTICE("SCMI: PD: %d\n", (unsigned int)ret);
+		count = 0U;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
-	return ret;
+
+	return count;
 }
 
 const char *plat_scmi_pd_get_name(unsigned int agent_id, unsigned int pd_id)
 {
-	const struct scmi_pd *pd = find_pd(agent_id, pd_id);
-	const char *ret = NULL;
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
+	uint32_t data[RET_PAYLOAD_ARG_CNT];
+	static char name_buffer[16];
+	enum pm_api_ret_status ret;
+	const char *result;
+	(void)agent_id;
 
-	if (pd != NULL) {
-		ret = pd->name;
+	/* Query firmware for power domain name using XPM_QID_GET_NAME */
+	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
+
+	if (ret == PM_RET_SUCCESS) {
+		/* Name is returned in data[0] as a 32-bit value */
+		(void)strlcpy(name_buffer, (char *) &data[0], sizeof(name_buffer));
+		name_buffer[15] = '\0';  /* Ensure null termination */
+		result = name_buffer;
+	} else {
+		result = NULL;
+		NOTICE("%s: failed with err code %d\n", __func__, ret);
 	}
 
-	return ret;
+	return result;
 }
 
 unsigned int plat_scmi_pd_statistics(unsigned int agent_id, unsigned long *pd_id)
 {
+	(void)agent_id;
+	(void)pd_id;
+	/* We don't support stats */
 	return 0U;
 }
 
 unsigned int plat_scmi_pd_get_attributes(unsigned int agent_id, unsigned int pd_id)
 {
+	(void)agent_id;
+	(void)pd_id;
+	/* We don't support notification and async set */
 	return 0U;
 }
 
 unsigned int plat_scmi_pd_get_state(unsigned int agent_id, unsigned int pd_id)
 {
-	const struct scmi_pd *pd = find_pd(agent_id, pd_id);
-	uint32_t ret = SCMI_NOT_SUPPORTED;
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
+	enum pm_api_ret_status pm_ret;
+	unsigned int scmi_state;
+	uint32_t dev_state = 0;
+	(void)agent_id;
 
-	if (pd != NULL) {
-		NOTICE("SCMI: PD: get id: %d, state: %x\n", pd_id, pd->state);
+	/* Query firmware for node status using PM_GET_NODE_STATUS */
+	pm_ret = pm_api_get_node_status(encoded_id, &dev_state);
 
-		ret = pd->state;
+	if (pm_ret != PM_RET_SUCCESS) {
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+		scmi_state = PD_STATE_OFF;
+	} else {
+		/*
+		 * XST_SUCCESS case - Map device state to SCMI power state:
+		 * ON states: XPM_DEVSTATE_RUNNING (1), XPM_DEVSTATE_SUSPENDING (8),
+		 *            XPM_DEVSTATE_PENDING_PWR_DWN (11)
+		 * OFF states: Any other value
+		 */
+		if ((dev_state == XPM_DEVSTATE_RUNNING) ||
+		    (dev_state == XPM_DEVSTATE_SUSPENDING) ||
+		    (dev_state == XPM_DEVSTATE_PENDING_PWR_DWN)) {
+			scmi_state = PD_STATE_ON;
+		} else {
+			scmi_state = PD_STATE_OFF;
+		}
 	}
 
-	return ret;
+	return scmi_state;
 }
 
 int32_t plat_scmi_pd_set_state(unsigned int agent_id, unsigned int flags, unsigned int pd_id,
 			       unsigned int state)
 {
-	struct scmi_pd *pd = find_pd(agent_id, pd_id);
-	int32_t ret = SCMI_SUCCESS;
+	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
+	enum pm_api_ret_status pm_ret;
+	int32_t ret;
+	(void)agent_id;
+	(void)flags;
 
-	if (pd == NULL) {
-		ret = SCMI_NOT_SUPPORTED;
-		goto exit_label;
+	if (state == 0U) {
+		/* Power ON: request node and set requirement */
+		pm_ret = pm_api_request_node(encoded_id, 0, 0,
+					     PM_API_REQUEST_ACK_BLOCKING);
+
+		if (pm_ret != PM_RET_SUCCESS) {
+			ret = pm_error_to_scmi(pm_ret);
+		} else {
+			pm_ret = pm_api_set_requirement(encoded_id,
+							PM_API_CAPABILITY_ACCESS,
+							PM_API_MAX_QOS,
+							PM_API_REQUEST_ACK_BLOCKING);
+			/* Common error handling for set_requirement */
+			ret = pm_error_to_scmi(pm_ret);
+		}
+	} else {
+		/* Power OFF: set requirement to unusable */
+		pm_ret = pm_api_set_requirement(encoded_id,
+						PM_API_CAPABILITY_UNUSABLE, 0,
+						PM_API_REQUEST_ACK_NO);
+		/* Common error handling for set_requirement */
+		ret = pm_error_to_scmi(pm_ret);
 	}
 
-	NOTICE("SCMI: PD: set id: %d, orig state: %x, new state: %x,  flags: %x\n",
-			pd_id, pd->state, state, flags);
+	if (ret != SCMI_SUCCESS) {
+		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+	}
 
-	pd->state = state;
-
-exit_label:
 	return ret;
 }
-
 
 /* Currently only one channel is supported. Expectation is that channel 0 is used by NS SW */
 static struct scmi_msg_channel scmi_channel[] = {

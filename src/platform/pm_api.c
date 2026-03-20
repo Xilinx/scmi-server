@@ -243,3 +243,116 @@ enum pm_api_ret_status pm_api_reset_assert(const uint32_t reset,
 
 	return result;
 }
+
+/**
+ * pm_api_set_requirement() - PM call to set requirement for PM slaves
+ * @node: Node ID of the slave
+ * @capabilities: Requested capabilities of the slave
+ * @qos: Quality of service (not supported)
+ * @ack: Flag to specify whether acknowledge is requested
+ *
+ * This API function is to be used for slaves a PU already has requested
+ * to change its capabilities.
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_set_requirement(const uint32_t node, const uint32_t capabilities,
+			   const uint32_t qos,
+			   const enum pm_api_request_ack ack)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if set requirement API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_SET_REQUIREMENT));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_SET_REQUIREMENT);
+		payload[1] = node;
+		payload[2] = capabilities;
+		payload[3] = qos;
+		payload[4] = (uint32_t)ack;
+
+		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+	}
+
+	return result;
+}
+
+/**
+ * pm_api_request_node() - Request a node with specific capabilities
+ * @node: Node ID of the slave
+ * @capabilities: Requested capabilities of the slave
+ * @qos: Quality of service (not supported)
+ * @ack: Flag to specify whether acknowledge is requested
+ *
+ * This function is used by master to request particular node from firmware.
+ * Every master must request node before using it.
+ *
+ * Return: Returns status, either success or error+reason
+ */
+
+enum pm_api_ret_status pm_api_request_node(const uint32_t node, const uint32_t capabilities,
+			const uint32_t qos,
+			const enum pm_api_request_ack ack)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if request node API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_REQUEST_NODE));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_REQUEST_NODE);
+		payload[1] = node;
+		payload[2] = capabilities;
+		payload[3] = qos;
+		payload[4] = (uint32_t)ack;
+
+		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+	}
+
+	return result;
+}
+
+/**
+ * pm_api_get_node_status() - Get node status from firmware
+ * @node: Node ID
+ * @state: Returned state value
+ *
+ * This function is used to get the current status of a node
+ *
+ * Return: Returns status, either success or error+reason
+ */
+enum pm_api_ret_status pm_api_get_node_status(uint32_t node, uint32_t *state)
+{
+	uint32_t payload[PAYLOAD_ARG_CNT];
+	enum pm_api_ret_status result;
+	uint32_t feature_check_api;
+
+	/* Check if get node status API is supported by firmware before sending the command */
+	feature_check_api = pm_api_feature_check(PM_PACK_PAYLOAD_HDR(PM_MODULE_ID, PM_API_GET_NODE_STATUS));
+	if (feature_check_api == (uint32_t)PM_RET_ERROR_NO_FEATURE) {
+		/* API not supported by firmware */
+		result = PM_RET_ERROR_NO_FEATURE;
+	} else {
+		zeromem(&payload[0], sizeof(payload));
+
+		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_GET_NODE_STATUS);
+		payload[1] = node;
+
+		result = pm_ipi_send_sync(primary_proc, payload, state, 1);
+	}
+
+	return result;
+}
