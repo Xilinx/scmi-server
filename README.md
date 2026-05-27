@@ -93,13 +93,13 @@ scmi-server/
 
 1. Clone the TF-A repository:
 ```bash
-git clone https://github.com/AMD-AECG-SSW-PUBLIC/arm-trusted-firmware.git
+git clone https://github.com/Xilinx/arm-trusted-firmware.git -b xlnx_rebase_v2.14
 cd arm-trusted-firmware/
 ```
 
 2. Clone the scmi-server repository:
 ```bash
-git clone https://github.com/AMD-AECG-SSW-PUBLIC/scmi-server.git
+git clone https://github.com/Xilinx/scmi-server.git
 ```
 
 ### Building with SCMI Server
