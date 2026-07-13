@@ -18,8 +18,7 @@
 #include "platform/pm_api.h"
 #include "pm_client.h"
 
-extern enum pm_api_ret_status pm_ipi_send_sync(const struct pm_proc *proc,
-					       uint32_t payload[PAYLOAD_ARG_CNT],
+extern enum pm_api_ret_status pm_ipi_send_sync(uint32_t payload[PAYLOAD_ARG_CNT],
 					       uint32_t *value, size_t count);
 
 /**
@@ -50,7 +49,7 @@ static uint32_t pm_api_feature_check(uint32_t api_id)
 	payload[0] = FIELD_PREP(MODULE_ID_MASK, XPM_MODULE_ID) | PM_FEATURE_CHECK;
 	payload[1] = api_id & API_ID_MASK;
 
-	ret = (uint32_t)pm_ipi_send_sync(primary_proc, payload, result, 2);
+	ret = (uint32_t)pm_ipi_send_sync(payload, result, 2);
 
 	/* If firmware call failed, API is not supported */
 	if (ret != (uint32_t)PM_RET_SUCCESS) {
@@ -89,7 +88,7 @@ enum pm_api_ret_status pm_api_get_rate(const uint32_t node, uint32_t *rate)
 		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_CLOCK_GET_RATE);
 		payload[1] = node;
 
-		result = pm_ipi_send_sync(primary_proc, payload, rate, 1);
+		result = pm_ipi_send_sync(payload, rate, 1);
 	}
 
 	return result;
@@ -122,7 +121,7 @@ enum pm_api_ret_status pm_api_set_rate(const uint32_t node, uint32_t rate)
 		payload[1] = node;
 		payload[2] = rate;
 
-		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+		result = pm_ipi_send_sync(payload, NULL, 0);
 	}
 
 	return result;
@@ -162,7 +161,7 @@ enum pm_api_ret_status pm_api_query_data(uint32_t qid, uint32_t arg1, uint32_t a
 		payload[3] = arg2;
 		payload[4] = arg3;
 
-		result = pm_ipi_send_sync(primary_proc, payload, data, count);
+		result = pm_ipi_send_sync(payload, data, count);
 	}
 
 	return result;
@@ -205,7 +204,7 @@ enum pm_api_ret_status pm_api_clock_describe_rate(const uint32_t node, uint32_t 
 		payload[1] = node;
 		payload[2] = index;
 
-		result = pm_ipi_send_sync(primary_proc, payload, data, count);
+		result = pm_ipi_send_sync(payload, data, count);
 	}
 
 	return result;
@@ -238,7 +237,7 @@ enum pm_api_ret_status pm_api_reset_assert(const uint32_t reset,
 		payload[1] = reset;
 		payload[2] = (uint32_t)assert_flag;
 
-		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+		result = pm_ipi_send_sync(payload, NULL, 0);
 	}
 
 	return result;
@@ -278,7 +277,7 @@ enum pm_api_ret_status pm_api_set_requirement(const uint32_t node, const uint32_
 		payload[3] = qos;
 		payload[4] = (uint32_t)ack;
 
-		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+		result = pm_ipi_send_sync(payload, NULL, 0);
 	}
 
 	return result;
@@ -319,7 +318,7 @@ enum pm_api_ret_status pm_api_request_node(const uint32_t node, const uint32_t c
 		payload[3] = qos;
 		payload[4] = (uint32_t)ack;
 
-		result = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+		result = pm_ipi_send_sync(payload, NULL, 0);
 	}
 
 	return result;
@@ -351,7 +350,7 @@ enum pm_api_ret_status pm_api_get_node_status(uint32_t node, uint32_t *state)
 		payload[0] = PM_PACK_PAYLOAD_HDR(XPM_MODULE_ID, PM_API_GET_NODE_STATUS);
 		payload[1] = node;
 
-		result = pm_ipi_send_sync(primary_proc, payload, state, 1);
+		result = pm_ipi_send_sync(payload, state, 1);
 	}
 
 	return result;
