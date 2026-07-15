@@ -27,6 +27,12 @@
 
 /*
  * Platform SCMI clock
+ *
+ * The SCMI clock id (scmi_id) is an index into scmi_clock_map[], which
+ * translates it to the real PLM/EEMI clock id (plm_id) used in EEMI calls.
+ * The map already carries the full node id so plm_id is passed to the PLM as-is.
+ * Do NOT re-encode it with scmi_encode_node_id(): that would encode the SCMI
+ * id instead of the PLM clock index and double-apply the node prefix.
  */
 size_t plat_scmi_clock_count(unsigned int agent_id)
 {
