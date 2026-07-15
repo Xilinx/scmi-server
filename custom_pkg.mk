@@ -116,6 +116,9 @@ SCMI_TRANSPORT_SRCS := \
 # Platform-specific implementation
 SCMI_PLATFORM_SRCS := \
     $(SCMI_SERVER_ROOT)/src/platform/scmi.c \
+    $(SCMI_SERVER_ROOT)/src/platform/scmi_clock.c \
+    $(SCMI_SERVER_ROOT)/src/platform/scmi_reset_domain.c \
+    $(SCMI_SERVER_ROOT)/src/platform/scmi_power_domain.c \
     $(SCMI_SERVER_ROOT)/src/platform/custom_svc.c \
     $(SCMI_SERVER_ROOT)/src/platform/pm_api.c
 
