@@ -127,6 +127,29 @@ scmi_msg_handler_t scmi_msg_get_pd_handler(struct scmi_msg *msg);
 scmi_msg_handler_t scmi_msg_get_sensor_handler(struct scmi_msg *msg);
 
 /*
+ * Anomalous SCMI channel conditions detected on an SMC/interrupt entry and
+ * reported through plat_scmi_report_incident(). These indicate a caller ringing
+ * the doorbell without a well-formed pending message (e.g. no message at all),
+ * which a platform may want to record or escalate as a security incident.
+ */
+enum scmi_incident {
+	SCMI_INCIDENT_NO_CHANNEL = 0,	/* Entry for an agent with no channel */
+	SCMI_INCIDENT_CHANNEL_BUSY,	/* Entry while channel already busy */
+	SCMI_INCIDENT_NO_MESSAGE,	/* Doorbell but buffer still marked free */
+	SCMI_INCIDENT_BAD_STATUS,	/* Channel status reports an error */
+	SCMI_INCIDENT_PAYLOAD_TOO_BIG,	/* Declared payload exceeds the maximum */
+};
+
+/*
+ * Report an anomalous SCMI channel condition for @agent_id. The weak default
+ * (see entry.c) logs the incident; platforms may override it to escalate.
+ *
+ * @agent_id: SCMI agent whose channel triggered the incident
+ * @reason: which anomaly was detected (see enum scmi_incident)
+ */
+void plat_scmi_report_incident(unsigned int agent_id, enum scmi_incident reason);
+
+/*
  * Process Read, process and write response for input SCMI message
  *
  * @msg: SCMI message context

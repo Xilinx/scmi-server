@@ -116,6 +116,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 
 	chan = plat_scmi_get_channel(agent_id);
 	if (chan == NULL) {
+		plat_scmi_report_incident(agent_id, SCMI_INCIDENT_NO_CHANNEL);
 		return;
 	}
 
@@ -126,6 +127,23 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 
 	if (!channel_set_busy(chan)) {
 		VERBOSE("SCMI channel %u busy", agent_id);
+		plat_scmi_report_incident(agent_id, SCMI_INCIDENT_CHANNEL_BUSY);
+		goto out;
+	}
+
+	/*
+	 * The doorbell was rung but the channel is still marked free: there is
+	 * no pending message to process. Report it as an incident.
+	 */
+	if ((smt_status & SMT_STATUS_FREE) != 0U) {
+		VERBOSE("SCMI channel %u: no pending message", agent_id);
+		plat_scmi_report_incident(agent_id, SCMI_INCIDENT_NO_MESSAGE);
+		goto out;
+	}
+
+	if ((smt_status & SMT_STATUS_ERROR) != 0U) {
+		VERBOSE("SCMI channel %u: error status", agent_id);
+		plat_scmi_report_incident(agent_id, SCMI_INCIDENT_BAD_STATUS);
 		goto out;
 	}
 
@@ -134,12 +152,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 
 	if (in_payload_size > SCMI_PLAYLOAD_MAX) {
 		VERBOSE("SCMI payload too big %zu", in_payload_size);
-		goto out;
-	}
-
-	if ((smt_status & (SMT_STATUS_ERROR | SMT_STATUS_FREE)) != 0U) {
-		VERBOSE("SCMI channel bad status 0x%x",
-			smt_hdr->status & (SMT_STATUS_ERROR | SMT_STATUS_FREE));
+		plat_scmi_report_incident(agent_id, SCMI_INCIDENT_PAYLOAD_TOO_BIG);
 		goto out;
 	}
 

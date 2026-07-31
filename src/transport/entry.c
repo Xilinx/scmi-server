@@ -42,6 +42,37 @@ scmi_msg_handler_t scmi_msg_get_sensor_handler(struct scmi_msg *msg __unused)
 	return NULL;
 }
 
+#pragma weak plat_scmi_report_incident
+
+static const char *scmi_incident_str(enum scmi_incident reason)
+{
+	switch (reason) {
+	case SCMI_INCIDENT_NO_CHANNEL:
+		return "no channel assigned";
+	case SCMI_INCIDENT_CHANNEL_BUSY:
+		return "channel busy";
+	case SCMI_INCIDENT_NO_MESSAGE:
+		return "doorbell with no pending message";
+	case SCMI_INCIDENT_BAD_STATUS:
+		return "channel error status";
+	case SCMI_INCIDENT_PAYLOAD_TOO_BIG:
+		return "payload too big";
+	default:
+		return "unknown";
+	}
+}
+
+/*
+ * Weak default incident reporter: log the anomaly. Platforms can override this
+ * (strong definition) to escalate, e.g. bump a counter, raise an SDEI event, or
+ * write to a secure incident log.
+ */
+void plat_scmi_report_incident(unsigned int agent_id, enum scmi_incident reason)
+{
+	ERROR("SCMI: incident on agent %u: %s\n", agent_id,
+	      scmi_incident_str(reason));
+}
+
 void scmi_status_response(struct scmi_msg *msg, int32_t status)
 {
 	assert(msg->out && msg->out_size >= sizeof(int32_t));
