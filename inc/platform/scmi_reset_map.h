@@ -15,13 +15,19 @@
  *
  * The SCMI reset id is the array index (key) into scmi_reset_map[] and forms a
  * compact 0..scmi_reset_count-1 space. Each entry describes the PLM/EEMI reset
- * id to use when communicating with the PLM, plus a flags field (reserved, 0
- * for now).
+ * id to use when communicating with the PLM, plus a flags field.
  */
 struct scmi_reset_map_entry {
 	uint32_t plm_id;	/* PLM/EEMI reset id used in PLM communication */
-	uint32_t flags;		/* reserved for future use, 0 for now */
+	uint32_t flags;		/* SCMI_RST_FLAG_* bitmask, 0 for a plain entry */
 };
+
+/*
+ * The reset line exists in the Versal Gen2 node-id namespace (xpm_nodeid.h)
+ * but is not instantiated in this platform's PLM device topology.
+ */
+/* TODO: Detect the platform and enable the specific clock/reset/pd ids meant for ve-p-a1225 */
+#define SCMI_RST_FLAG_NOT_PRESENT	(1U << 0)
 
 /*
  * The map is not const: each entry carries a per-agent permission bitmap

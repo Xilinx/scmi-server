@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <drivers/scmi-msg.h>
@@ -13,6 +14,7 @@
 #include "platform/pm_defs.h"
 #include "platform/pm_api.h"
 #include "platform/scmi_plat.h"
+#include "platform/scmi_reset_map.h"
 #include "common.h"
 
 /*
@@ -21,12 +23,23 @@
 
 const char *plat_scmi_rstd_get_name(unsigned int agent_id, unsigned int scmi_id)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
 	uint32_t data[RET_PAYLOAD_ARG_CNT];
 	static char name_buffer[16];
 	enum pm_api_ret_status ret;
 	const char *result;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_reset_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return NULL;
+	}
+
+	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
+		(void)snprintf(name_buffer, sizeof(name_buffer), "rsvd%u", scmi_id);
+		return name_buffer;
+	}
 
 	/* Query firmware for reset name using XPM_QID_GET_NAME */
 	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
@@ -46,31 +59,33 @@ const char *plat_scmi_rstd_get_name(unsigned int agent_id, unsigned int scmi_id)
 
 size_t plat_scmi_rstd_count(unsigned int agent_id)
 {
-	uint32_t data[RET_PAYLOAD_ARG_CNT];
-	enum pm_api_ret_status ret;
-	size_t count;
 	(void)agent_id;
 
-	/* Query firmware for reset count using XPM_QID_GET_NODE_COUNT with RESET class */
-	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_RESET, 0, 0, data, 1U);
-
-	if (ret == PM_RET_SUCCESS) {
-		count = (size_t)data[0];
-	} else {
-		count = 0U;
-		NOTICE("%s: failed with err code %d\n", __func__, ret);
-	}
-
-	return count;
+	/*
+	 * Report the count of reset domains actually exposed via SCMI
+	 * (scmi_reset_map[]), not PLM's live total reset count, which
+	 * is not indexable into scmi_reset_map[].
+	 */
+	return scmi_reset_count;
 }
 
 int32_t plat_scmi_rstd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 				  unsigned int state)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
 	enum pm_api_ret_status pm_ret;
 	int32_t ret = SCMI_SUCCESS;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_reset_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
 
 	/* Supports only reset with context loss */
 	if (state != 0U) {
@@ -89,10 +104,20 @@ int32_t plat_scmi_rstd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 int32_t plat_scmi_rstd_set_state(unsigned int agent_id, unsigned int scmi_id,
 				 bool assert_not_deassert)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_RESET, scmi_id);
 	enum pm_api_ret_status pm_ret;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	int32_t ret;
 	(void)agent_id;
+
+	if (scmi_reset_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
 
 	if (assert_not_deassert) {
 		pm_ret = pm_api_reset_assert(encoded_id, PM_RESET_ACTION_ASSERT);
