@@ -17,13 +17,19 @@
  *
  * The SCMI clock id is the array index (key) into scmi_clock_map[] and forms a
  * compact 0..scmi_clock_count-1 space. Each entry describes the PLM/EEMI clock
- * id to use when communicating with the PLM, plus a flags field (reserved, 0
- * for now).
+ * id to use when communicating with the PLM, plus a flags field.
  */
 struct scmi_clock_map_entry {
 	uint32_t plm_id;	/* PLM/EEMI clock id used in PLM communication */
-	uint32_t flags;		/* reserved for future use, 0 for now */
+	uint32_t flags;		/* SCMI_CLK_FLAG_* bitmask, 0 for a plain entry */
 };
+
+/*
+ * The clock exists in the Versal Gen2 node-id namespace (xpm_nodeid.h) but is
+ * not instantiated in this platform's PLM device topology.
+ */
+/* TODO: Detect the platform and enable the specific clock/reset/pd ids meant for ve-p-a1225 */
+#define SCMI_CLK_FLAG_NOT_PRESENT	(1U << 0)
 
 extern struct scmi_clock_map_entry scmi_clock_map[];
 

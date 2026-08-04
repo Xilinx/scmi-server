@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <drivers/scmi-msg.h>
@@ -13,6 +14,7 @@
 #include "platform/pm_defs.h"
 #include "platform/pm_api.h"
 #include "platform/scmi_plat.h"
+#include "platform/scmi_clock_map.h"
 #include "common.h"
 
 #define HIGH (1)
@@ -36,22 +38,14 @@
  */
 size_t plat_scmi_clock_count(unsigned int agent_id)
 {
-	uint32_t data[RET_PAYLOAD_ARG_CNT];
-	enum pm_api_ret_status ret;
-	size_t count;
 	(void)agent_id;
 
-	/* Query firmware for clock count using XPM_QID_GET_NODE_COUNT with CLOCK class */
-	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_CLOCK, 0, 0, data, 1U);
-
-	if (ret == PM_RET_SUCCESS) {
-		count = (size_t)data[0];
-	} else {
-		count = 0U;
-		NOTICE("%s: failed with err code %d\n", __func__, ret);
-	}
-
-	return count;
+	/*
+	 * Report the count of clocks actually exposed via SCMI
+	 * (scmi_clock_map[]), not PLM's live total clock count, which
+	 * is not indexable into scmi_clock_map[].
+	 */
+	return scmi_clock_count;
 }
 
 const char *plat_scmi_clock_get_name(unsigned int agent_id, unsigned int scmi_id)
@@ -61,7 +55,19 @@ const char *plat_scmi_clock_get_name(unsigned int agent_id, unsigned int scmi_id
 	static char name_buffer[16];
 	enum pm_api_ret_status ret;
 	const char *result;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_clock_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return NULL;
+	}
+
+	/* Not instantiated by the design -- see SCMI_CLK_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_CLK_FLAG_NOT_PRESENT) != 0U) {
+		(void)snprintf(name_buffer, sizeof(name_buffer), "rsvd%u", scmi_id);
+		return name_buffer;
+	}
+	encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, encoded_id);
 
 	/* Query firmware for clock name using XPM_QID_GET_NAME */
 	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
@@ -91,7 +97,18 @@ int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
 	int32_t ret = SCMI_SUCCESS;
 	uint32_t format_desc;
 	uint32_t is_range;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_clock_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_CLK_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_CLK_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
+	encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, encoded_id);
 
 	/* Call PLM to describe the rates for this clock at the specified index */
 	pm_ret = pm_api_clock_describe_rate(encoded_id, start_idx, data, RET_PAYLOAD_ARG_CNT - 1U);
@@ -158,7 +175,20 @@ unsigned long plat_scmi_clock_get_rate(unsigned int agent_id, unsigned int scmi_
 	enum pm_api_ret_status pm_ret;
 	unsigned long ret;
 	uint32_t rate = 0;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_clock_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return 0UL;
+	}
+
+	/* Not instantiated by the design -- see SCMI_CLK_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_CLK_FLAG_NOT_PRESENT) != 0U) {
+		return 0UL;
+	}
+	/* Re-encode as an INDEXED node id: same real node when present, a
+	 * graceful "not found" instead of a hard failure when it's not. */
+	encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, encoded_id);
 
 	/* Call PLM to get the current rate */
 	pm_ret = pm_api_get_rate(encoded_id, &rate);
@@ -179,7 +209,18 @@ int32_t plat_scmi_clock_set_rate(unsigned int agent_id, unsigned int scmi_id,
 	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, scmi_id);
 	enum pm_api_ret_status pm_ret;
 	int32_t ret = SCMI_SUCCESS;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_clock_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_CLK_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_CLK_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
+	encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, encoded_id);
 
 	/* Call PLM to set the rate */
 	pm_ret = pm_api_set_rate(encoded_id, (uint32_t)rate);
@@ -226,7 +267,18 @@ int32_t plat_scmi_clock_rates_by_step(unsigned int agent_id, unsigned int scmi_i
 	int32_t ret = SCMI_SUCCESS;
 	uint32_t format_desc;
 	uint32_t is_range;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_clock_map_get(scmi_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_CLK_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_CLK_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
+	encoded_id = scmi_encode_node_id(XPM_NODECLASS_CLOCK, encoded_id);
 
 	/* Call PLM to describe the rates for this clock (index 0 for range format) */
 	pm_ret = pm_api_clock_describe_rate(encoded_id, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
