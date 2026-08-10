@@ -15,17 +15,23 @@
  *
  * The SCMI power domain id is the array index (key) into scmi_power_map[] and
  * forms a compact 0..scmi_power_count-1 space. Each entry describes the
- * PLM/EEMI device id to use when communicating with the PLM, plus a flags field
- * (reserved, 0 for now).
+ * PLM/EEMI device id to use when communicating with the PLM, plus a flags field.
  */
 struct scmi_power_map_entry {
 	uint32_t plm_id;	/* PLM/EEMI device (power) id used in PLM communication */
-	uint32_t flags;		/* reserved for future use, 0 for now */
+	uint32_t flags;		/* SCMI_PWR_FLAG_* bitmask, 0 for a plain entry */
 };
+
+/*
+ * The device exists in the Versal Gen2 node-id namespace (xpm_nodeid.h) but is
+ * not instantiated in this platform's PLM device topology.
+ */
+/* TODO: Detect the platform and enable the specific clock/reset/pd ids meant for ve-p-a1225 */
+#define SCMI_PWR_FLAG_NOT_PRESENT	(1U << 0)
 
 extern struct scmi_power_map_entry scmi_power_map[];
 
-/* Number of reset domains in scmi_power_map[] (derived from the table). */
+/* Number of power domains in scmi_power_map[] (derived from the table). */
 extern const size_t scmi_power_count;
 
 /*

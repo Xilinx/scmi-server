@@ -7,6 +7,7 @@
  */
 
 #include <stdint.h>
+#include <lib/utils_def.h>
 
 #include "platform/scmi_power_map.h"
 #include "platform/dt-bindings/versal2-scmi-power.h"
@@ -38,7 +39,7 @@ struct scmi_power_map_entry scmi_power_map[] = {
 	[SCMI_PD_VERSAL2_DEV_TTC_1      ] = { .plm_id = 0x18224025U, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_TTC_2      ] = { .plm_id = 0x18224026U, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_TTC_3      ] = { .plm_id = 0x18224027U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_SWDT_LPD   ] = { .plm_id = 0x18224028U, .flags = 0U },
+	[SCMI_PD_VERSAL2_DEV_SWDT_LPD   ] = { .plm_id = 0x18224028U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
 	[SCMI_PD_VERSAL2_DEV_OSPI       ] = { .plm_id = 0x1822402AU, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_QSPI       ] = { .plm_id = 0x1822402BU, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_GPIO_PMC   ] = { .plm_id = 0x1822402CU, .flags = 0U },
@@ -110,14 +111,14 @@ struct scmi_power_map_entry scmi_power_map[] = {
 	[SCMI_PD_VERSAL2_DEV_TCM_E_1A   ] = { .plm_id = 0x1831810FU, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_TCM_E_1B   ] = { .plm_id = 0x18318110U, .flags = 0U },
 	[SCMI_PD_VERSAL2_DEV_TCM_E_1C   ] = { .plm_id = 0x18318111U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_UART_0 ] = { .plm_id = 0x1822413DU, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_UART_1 ] = { .plm_id = 0x1822413EU, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_UART_2 ] = { .plm_id = 0x1822413FU, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_SPI_0  ] = { .plm_id = 0x18224140U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_SPI_1  ] = { .plm_id = 0x18224141U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_SPI_2  ] = { .plm_id = 0x18224142U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_EIO_SPI_3  ] = { .plm_id = 0x18224143U, .flags = 0U },
-	[SCMI_PD_VERSAL2_DEV_GPIO_EIO   ] = { .plm_id = 0x18224144U, .flags = 0U },
+	[SCMI_PD_VERSAL2_DEV_EIO_UART_0 ] = { .plm_id = 0x1822413DU, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_UART_1 ] = { .plm_id = 0x1822413EU, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_UART_2 ] = { .plm_id = 0x1822413FU, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_SPI_0  ] = { .plm_id = 0x18224140U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_SPI_1  ] = { .plm_id = 0x18224141U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_SPI_2  ] = { .plm_id = 0x18224142U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_EIO_SPI_3  ] = { .plm_id = 0x18224143U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
+	[SCMI_PD_VERSAL2_DEV_GPIO_EIO   ] = { .plm_id = 0x18224144U, .flags = SCMI_PWR_FLAG_NOT_PRESENT },
 };
 
 const size_t scmi_power_count = ARRAY_SIZE(scmi_power_map);

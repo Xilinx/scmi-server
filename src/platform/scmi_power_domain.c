@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <drivers/scmi-msg.h>
@@ -13,6 +14,7 @@
 #include "platform/pm_defs.h"
 #include "platform/pm_api.h"
 #include "platform/scmi_plat.h"
+#include "platform/scmi_power_map.h"
 #include "common.h"
 
 #define PD_STATE_ON  0
@@ -24,32 +26,36 @@
 
 size_t plat_scmi_pd_count(unsigned int agent_id)
 {
-	uint32_t data[RET_PAYLOAD_ARG_CNT];
-	enum pm_api_ret_status ret;
-	size_t count;
 	(void)agent_id;
 
-	/* Query firmware for power domain count using XPM_QID_GET_NODE_COUNT with POWER class */
-	ret = pm_api_query_data(XPM_QID_GET_NODE_COUNT, XPM_NODECLASS_DEVICE, 0, 0, data, 1U);
-
-	if (ret == PM_RET_SUCCESS) {
-		count = (size_t)data[0];
-	} else {
-		count = 0U;
-		NOTICE("%s: failed with err code %d\n", __func__, ret);
-	}
-
-	return count;
+	/*
+	 * Report the count of power domains actually exposed via SCMI
+	 * (scmi_power_map[]), not PLM's live total device count, which
+	 * includes every device on the SoC and is not indexable into
+	 * scmi_power_map[].
+	 */
+	return scmi_power_count;
 }
 
 const char *plat_scmi_pd_get_name(unsigned int agent_id, unsigned int pd_id)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
 	uint32_t data[RET_PAYLOAD_ARG_CNT];
 	static char name_buffer[16];
 	enum pm_api_ret_status ret;
 	const char *result;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_power_map_get(pd_id, &encoded_id, &map_flags) != 0) {
+		return NULL;
+	}
+
+	/* Not instantiated by the design -- see SCMI_PWR_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_PWR_FLAG_NOT_PRESENT) != 0U) {
+		(void)snprintf(name_buffer, sizeof(name_buffer), "rsvd%u", pd_id);
+		return name_buffer;
+	}
 
 	/* Query firmware for power domain name using XPM_QID_GET_NAME */
 	ret = pm_api_query_data(XPM_QID_GET_NAME, encoded_id, 0, 0, data, RET_PAYLOAD_ARG_CNT - 1U);
@@ -85,17 +91,28 @@ unsigned int plat_scmi_pd_get_attributes(unsigned int agent_id, unsigned int pd_
 
 unsigned int plat_scmi_pd_get_state(unsigned int agent_id, unsigned int pd_id)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
 	enum pm_api_ret_status pm_ret;
 	unsigned int scmi_state;
 	uint32_t dev_state = 0;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	(void)agent_id;
+
+	if (scmi_power_map_get(pd_id, &encoded_id, &map_flags) != 0) {
+		return PD_STATE_OFF;
+	}
+
+	/* Not instantiated by the design -- see SCMI_PWR_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_PWR_FLAG_NOT_PRESENT) != 0U) {
+		return PD_STATE_OFF;
+	}
 
 	/* Query firmware for node status using PM_GET_NODE_STATUS */
 	pm_ret = pm_api_get_node_status(encoded_id, &dev_state);
 
 	if (pm_ret != PM_RET_SUCCESS) {
-		NOTICE("%s: failed with err code %d\n", __func__, pm_ret);
+		NOTICE("%s: pd_id=%u (0x%x) failed with err code %d\n",
+		       __func__, pd_id, encoded_id, pm_ret);
 		scmi_state = PD_STATE_OFF;
 	} else {
 		/*
@@ -119,11 +136,21 @@ unsigned int plat_scmi_pd_get_state(unsigned int agent_id, unsigned int pd_id)
 int32_t plat_scmi_pd_set_state(unsigned int agent_id, unsigned int flags, unsigned int pd_id,
 			       unsigned int state)
 {
-	uint32_t encoded_id = scmi_encode_node_id(XPM_NODECLASS_DEVICE, pd_id);
 	enum pm_api_ret_status pm_ret;
+	uint32_t encoded_id;
+	uint32_t map_flags;
 	int32_t ret;
 	(void)agent_id;
 	(void)flags;
+
+	if (scmi_power_map_get(pd_id, &encoded_id, &map_flags) != 0) {
+		return SCMI_NOT_FOUND;
+	}
+
+	/* Not instantiated by the design -- see SCMI_PWR_FLAG_NOT_PRESENT. */
+	if ((map_flags & SCMI_PWR_FLAG_NOT_PRESENT) != 0U) {
+		return SCMI_NOT_SUPPORTED;
+	}
 
 	if (state == 0U) {
 		/* Power ON: request node and set requirement */
