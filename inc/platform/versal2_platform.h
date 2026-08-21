@@ -11,9 +11,6 @@
 #include <stdint.h>
 #include <lib/smccc.h>
 
-/* Base address of the nonsecure (Linux) SCMI SMT buffer */
-#define SMT_BUFFER_BASE	0x20001000
-
 /* SMC fast-call FID assigned to the nonsecure (Linux) SCMI agent */
 #define SCMI_NS_AGENT_SMC_FID	0xC2002001U
 

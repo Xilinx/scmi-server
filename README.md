@@ -145,7 +145,11 @@ The scmi-server integrates with TF-A's SiP (Silicon Provider) SMC handler in `pl
 ### SMT Buffer Configuration
 
 The Shared Memory Transport buffer is configured in platform definitions:
-- **Buffer Address**: `0x20001000` (defined as `SMT_BUFFER_BASE` in `versal2_platform.h`) — used by the nonsecure (Linux) SCMI agent
+- **Buffer Address**: `0x20001000` by default (defined as `SMT_BUFFER_BASE` in `versal2_platform.h`) — used by the nonsecure (Linux) SCMI agent.
+    Override it at build time with the `SMT_BUFFER_BASE` make argument, e.g.:
+  ```
+  make ... SMT_BUFFER_BASE=0x7b001000 CUSTOM_PKG_PATH=../scmi-server bl31
+  ```
 - **Buffer Size**: 4KB
 - **Transport**: SMC fast call with FID `0xC2002001` - Used by the nonsecure SCMI (Linux) agent
 

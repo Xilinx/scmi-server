@@ -55,6 +55,12 @@ $(info =========================================================================
 # Configuration Flags
 # =============================================================================
 
+# Base address of the nonsecure (Linux) SCMI SMT buffer. Defaults to
+# 0x00020001000 but can be overridden on the build command line, e.g.:
+#   make ... SMT_BUFFER_BASE=0x7b001000 CUSTOM_PKG_PATH=../scmi-server bl31
+SMT_BUFFER_BASE ?= 0x00020001000
+$(eval $(call add_define,SMT_BUFFER_BASE))
+
 # =============================================================================
 # Feature Configuration - Conditionally enable SCMI protocols
 # =============================================================================
