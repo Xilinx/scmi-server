@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <common.h>
 #include <lib/smccc.h>
 #include <smccc_helpers.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
@@ -73,7 +74,9 @@ __attribute__((weak)) void custom_mmap_add(void)
  *
  * This function handles custom SMC calls from non-secure world. For the SCMI
  * server implementation, it processes SCMI fast-call requests by invoking
- * the SCMI SMT (Shared Memory Transport) entry point.
+ * the SCMI SMT (Shared Memory Transport) entry point. Only the FID assigned
+ * to the nonsecure SCMI agent (SCMI_NS_AGENT_SMC_FID) is accepted; any other
+ * FID is rejected and reported as an incident.
  *
  * Context: Called from SMC exception handler in secure monitor context.
  * Return: SMC_OK on success, or SMC_UNK if the SMC is not handled
@@ -88,7 +91,6 @@ __attribute__((weak)) uint64_t custom_smc_handler(uint32_t smc_fid,
 						   uint64_t flags)
 {
 	/* Mark unused parameters to satisfy MISRA C-2012 Rule 2.7 */
-	(void)smc_fid;
 	(void)x1;
 	(void)x2;
 	(void)x3;
@@ -96,7 +98,11 @@ __attribute__((weak)) uint64_t custom_smc_handler(uint32_t smc_fid,
 	(void)cookie;
 	(void)flags;
 
-	/* SCMI server: No custom SMC handling */
+	if (smc_fid != SCMI_NS_AGENT_SMC_FID) {
+		plat_scmi_report_incident(0, SCMI_INCIDENT_UNKNOWN_FID);
+		SMC_RET1(handle, SMC_UNK);
+	}
+
 	scmi_smt_fastcall_smc_entry(0);
 	SMC_RET1(handle, SMC_OK);
 }

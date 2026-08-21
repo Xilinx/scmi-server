@@ -138,6 +138,7 @@ enum scmi_incident {
 	SCMI_INCIDENT_NO_MESSAGE,	/* Doorbell but buffer still marked free */
 	SCMI_INCIDENT_BAD_STATUS,	/* Channel status reports an error */
 	SCMI_INCIDENT_PAYLOAD_TOO_BIG,	/* Declared payload exceeds the maximum */
+	SCMI_INCIDENT_UNKNOWN_FID,	/* SMC entry with an unrecognized function ID */
 };
 
 /*

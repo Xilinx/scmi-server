@@ -57,6 +57,8 @@ static const char *scmi_incident_str(enum scmi_incident reason)
 		return "channel error status";
 	case SCMI_INCIDENT_PAYLOAD_TOO_BIG:
 		return "payload too big";
+	case SCMI_INCIDENT_UNKNOWN_FID:
+		return "unrecognized SMC function ID";
 	default:
 		return "unknown";
 	}
