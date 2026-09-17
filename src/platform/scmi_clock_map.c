@@ -124,13 +124,13 @@ struct scmi_clock_map_entry scmi_clock_map[] = {
 	[SCMI_CLK_VERSAL2_MMI_GEM_HCLK    ] = { .plm_id = 0x82080E0U, .flags = 0U },
 	[SCMI_CLK_VERSAL2_DC_REF          ] = { .plm_id = 0x82080E2U, .flags = 0U },
 	[SCMI_CLK_VERSAL2_DC_27M          ] = { .plm_id = 0x82080E3U, .flags = 0U },
-	[SCMI_CLK_VERSAL2_EIO_UART0_REF   ] = { .plm_id = 0x82080E6U, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_UART1_REF   ] = { .plm_id = 0x82080E7U, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_UART2_REF   ] = { .plm_id = 0x82080E8U, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_SPI0_REF    ] = { .plm_id = 0x82080E9U, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_SPI1_REF    ] = { .plm_id = 0x82080EAU, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_SPI2_REF    ] = { .plm_id = 0x82080EBU, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
-	[SCMI_CLK_VERSAL2_EIO_SPI3_REF    ] = { .plm_id = 0x82080ECU, .flags = SCMI_CLK_FLAG_NOT_PRESENT },
+	[SCMI_CLK_VERSAL2_EIO_UART0_REF   ] = { .plm_id = 0x82080E6U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_UART1_REF   ] = { .plm_id = 0x82080E7U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_UART2_REF   ] = { .plm_id = 0x82080E8U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_SPI0_REF    ] = { .plm_id = 0x82080E9U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_SPI1_REF    ] = { .plm_id = 0x82080EAU, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_SPI2_REF    ] = { .plm_id = 0x82080EBU, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_CLK_VERSAL2_EIO_SPI3_REF    ] = { .plm_id = 0x82080ECU, .flags = PLAT_VARIANT_2VE3288 },
 };
 
 const size_t scmi_clock_count = ARRAY_SIZE(scmi_clock_map);

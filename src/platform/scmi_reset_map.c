@@ -92,14 +92,14 @@ struct scmi_reset_map_entry scmi_reset_map[] = {
 	[SCMI_RST_VERSAL2_LPD               ] = { .plm_id = 0xC41002CU, .flags = 0U },
 	[SCMI_RST_VERSAL2_CPM               ] = { .plm_id = 0xC410051U, .flags = 0U },
 	[SCMI_RST_VERSAL2_CMN               ] = { .plm_id = 0xC410057U, .flags = 0U },
-	[SCMI_RST_VERSAL2_EIO_UART_0        ] = { .plm_id = 0xC104125U, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_UART_1        ] = { .plm_id = 0xC104126U, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_UART_2        ] = { .plm_id = 0xC104127U, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_SPI_0         ] = { .plm_id = 0xC104128U, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_SPI_1         ] = { .plm_id = 0xC104129U, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_SPI_2         ] = { .plm_id = 0xC10412AU, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_EIO_SPI_3         ] = { .plm_id = 0xC10412BU, .flags = SCMI_RST_FLAG_NOT_PRESENT },
-	[SCMI_RST_VERSAL2_GPIO_EIO          ] = { .plm_id = 0xC10412CU, .flags = SCMI_RST_FLAG_NOT_PRESENT },
+	[SCMI_RST_VERSAL2_EIO_UART_0        ] = { .plm_id = 0xC104125U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_UART_1        ] = { .plm_id = 0xC104126U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_UART_2        ] = { .plm_id = 0xC104127U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_SPI_0         ] = { .plm_id = 0xC104128U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_SPI_1         ] = { .plm_id = 0xC104129U, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_SPI_2         ] = { .plm_id = 0xC10412AU, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_EIO_SPI_3         ] = { .plm_id = 0xC10412BU, .flags = PLAT_VARIANT_2VE3288 },
+	[SCMI_RST_VERSAL2_GPIO_EIO          ] = { .plm_id = 0xC10412CU, .flags = PLAT_VARIANT_2VE3288 },
 };
 
 const size_t scmi_reset_count = ARRAY_SIZE(scmi_reset_map);
