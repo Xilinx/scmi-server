@@ -35,7 +35,7 @@ const char *plat_scmi_rstd_get_name(unsigned int agent_id, unsigned int scmi_id)
 		return NULL;
 	}
 
-	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	/* Gated at runtime for restricted variants. */
 	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
 		(void)snprintf(name_buffer, sizeof(name_buffer), "rsvd%u", scmi_id);
 		return name_buffer;
@@ -82,7 +82,7 @@ int32_t plat_scmi_rstd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 		return SCMI_NOT_FOUND;
 	}
 
-	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	/* Gated at runtime for restricted variants. */
 	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
 		return SCMI_NOT_SUPPORTED;
 	}
@@ -114,7 +114,7 @@ int32_t plat_scmi_rstd_set_state(unsigned int agent_id, unsigned int scmi_id,
 		return SCMI_NOT_FOUND;
 	}
 
-	/* Not instantiated by the design -- see SCMI_RST_FLAG_NOT_PRESENT. */
+	/* Gated at runtime for restricted variants. */
 	if ((map_flags & SCMI_RST_FLAG_NOT_PRESENT) != 0U) {
 		return SCMI_NOT_SUPPORTED;
 	}

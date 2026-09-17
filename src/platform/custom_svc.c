@@ -11,6 +11,7 @@
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <drivers/scmi-msg.h>
 #include <platform/versal2_platform.h>
+#include <platform/plat_variant.h>
 #include <stdio.h>
 
 /**
@@ -23,7 +24,8 @@
  */
 __attribute__((weak)) void custom_early_setup(void)
 {
-	/* SCMI server: No early setup required */
+	plat_variant = plat_get_variant();
+
 	init_scmi_server();
 }
 

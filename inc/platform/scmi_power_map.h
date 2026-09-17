@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "platform/plat_variant.h"
+
 /*
  * SCMI power domain id -> PLM/EEMI device (power) id translation.
  *
@@ -19,15 +21,14 @@
  */
 struct scmi_power_map_entry {
 	uint32_t plm_id;	/* PLM/EEMI device (power) id used in PLM communication */
-	uint32_t flags;		/* SCMI_PWR_FLAG_* bitmask, 0 for a plain entry */
+	uint32_t flags;		/* bitmask of PLAT_VARIANT_* this device is present on */
 };
 
 /*
- * The device exists in the Versal Gen2 node-id namespace (xpm_nodeid.h) but is
- * not instantiated in this platform's PLM device topology.
+ * Absent on every variant (table sentinel and getter output).
+ * Aliases PLAT_VARIANT_NONE (bit 31). Must not use bit 0: that is VERSAL_GEN2.
  */
-/* TODO: Detect the platform and enable the specific clock/reset/pd ids meant for ve-p-a1225 */
-#define SCMI_PWR_FLAG_NOT_PRESENT	(1U << 0)
+#define SCMI_PWR_FLAG_NOT_PRESENT	PLAT_VARIANT_NONE
 
 extern struct scmi_power_map_entry scmi_power_map[];
 
@@ -55,7 +56,13 @@ static inline int32_t scmi_power_map_get(unsigned int scmi_id,
 	}
 
 	if (flags != NULL) {
-		*flags = scmi_power_map[scmi_id].flags;
+		if ((scmi_power_map[scmi_id].flags != 0U) &&
+				((scmi_power_map[scmi_id].flags &
+				plat_variant) == 0U)) {
+			*flags = SCMI_PWR_FLAG_NOT_PRESENT;
+		} else {
+			*flags = 0U;
+		}
 	}
 
 	return 0;

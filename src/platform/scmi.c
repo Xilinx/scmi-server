@@ -5,12 +5,15 @@
  */
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <lib/utils_def.h>
 #include <platform_def.h>
+#include <def.h>
+#include <plat_private.h>
 #include "platform/versal2_platform.h"
 #include "common.h"
 
@@ -80,6 +83,40 @@ const char *plat_scmi_vendor_name(void)
 const char *plat_scmi_sub_vendor_name(void)
 {
 	return SCMI_PRODUCT;
+}
+
+#ifndef PSXC_2VE3288_IDCODE
+#define PSXC_2VE3288_IDCODE	U(0x04DB8093)
+#endif
+
+/* idcode -> variant lookup; unrecognized idcodes fall back to Versal Gen2. */
+static const struct {
+	uint32_t idcode;
+	plat_variant_t variant;
+} plat_variant_idcode_map[] = {
+	{ PSXC_VSLGEN2_IDCODE, PLAT_VARIANT_VERSAL_GEN2 },
+	{ PSXC_2VM3654_IDCODE, PLAT_VARIANT_2VM3654 },
+	{ PSXC_2VE3288_IDCODE, PLAT_VARIANT_2VE3288 },
+};
+
+plat_variant_t plat_variant;
+
+plat_variant_t plat_get_variant(void)
+{
+	plat_variant_t variant = PLAT_VARIANT_VERSAL_GEN2;
+	size_t i;
+
+	for (i = 0U; i < ARRAY_SIZE(plat_variant_idcode_map); i++) {
+		if (is_psxc(plat_variant_idcode_map[i].idcode)) {
+			variant = plat_variant_idcode_map[i].variant;
+			goto out;
+		}
+	}
+
+	WARN("SCMI: idcode did not match a known variant, defaulting to Versal Gen2\n");
+
+out:
+	return variant;
 }
 
 /* Currently supporting Clocks and Reset Domains */

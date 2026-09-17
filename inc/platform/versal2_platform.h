@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <lib/smccc.h>
 
+#include "platform/plat_variant.h"
+
 /* SMC fast-call FID assigned to the nonsecure (Linux) SCMI agent */
 #define SCMI_NS_AGENT_SMC_FID	0xC2002001U
 
